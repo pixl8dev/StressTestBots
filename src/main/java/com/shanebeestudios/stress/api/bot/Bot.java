@@ -42,6 +42,8 @@ public class Bot {
     private double highestY;
     private boolean connected;
     private boolean manualDisconnecting = false;
+    private BotMovement botMovement;
+    private boolean shouldMove = false;
 
     /**
      * Create an offline server bot
@@ -113,6 +115,12 @@ public class Bot {
      */
     public void setConnected(boolean connected) {
         this.connected = connected;
+        if (connected && this.shouldMove) {
+            startMovement();
+        } else if (!connected && this.botMovement != null) {
+            this.botMovement.cancel();
+            this.botMovement = null;
+        }
     }
 
     /**
@@ -202,13 +210,33 @@ public class Bot {
      * @param y Y pos of bot
      * @param z Z pos of bot
      */
+    private long lastPositionUpdate = 0;
+    private static final long POSITION_UPDATE_INTERVAL = 50;
+    
     public void setLastPosition(double x, double y, double z) {
-        if (this.lastX != x && this.lastZ != z) {
-            updateHighestY();
+        long currentTime = System.currentTimeMillis();
+        
+        if (currentTime - lastPositionUpdate > POSITION_UPDATE_INTERVAL) {
+            if (this.lastX != x && this.lastZ != z) {
+                updateHighestY();
+            }
+            this.lastX = x;
+            this.lastY = y;
+            this.lastZ = z;
+            this.lastPositionUpdate = currentTime;
+            
+            if (this.botMovement != null) {
+                this.botMovement.updatePosition(x, z);
+            }
         }
-        this.lastX = x;
-        this.lastY = y;
-        this.lastZ = z;
+    }
+    
+    /**
+     * Get the last Y position of this bot
+     * @return The last Y position
+     */
+    public double getLastY() {
+        return this.lastY;
     }
 
     public void updatePosToServer() {
@@ -240,12 +268,20 @@ public class Bot {
      * @param z Z coord of new location
      */
     public void moveTo(double x, double y, double z) {
-        this.client.send(new ServerboundMovePlayerPosPacket(false, true, x, y, z));
+        // save bandwidth?
+        if (x != lastX || y != lastY || z != lastZ) {
+            this.client.send(new ServerboundMovePlayerPosPacket(false, true, x, y, z));
+            // Update our internal position
+            this.lastX = x;
+            this.lastY = y;
+            this.lastZ = z;
+            this.lastPositionUpdate = System.currentTimeMillis();
+        }
     }
 
     /**
      * Move the bot to a new location
-     * <p>NOTE: The bot should not move more than 8 blocks</p>
+     * bot should not move more than 8 blocks
      *
      * @param x     X coord of new location
      * @param y     Y coord of new location
@@ -272,9 +308,43 @@ public class Bot {
      */
     public void disconnect() {
         this.manualDisconnecting = true;
+        if (this.botMovement != null) {
+            this.botMovement.cancel();
+            this.botMovement = null;
+        }
         this.client.disconnect("Leaving");
         BotDisconnectEvent botDisconnectEvent = new BotDisconnectEvent(this);
         botDisconnectEvent.callEvent();
+    }
+
+    /**
+     * Set whether the bot should move around randomly
+     * @param shouldMove True to enable movement, false to disable
+     */
+    public void setShouldMove(boolean shouldMove) {
+        this.shouldMove = shouldMove;
+        if (shouldMove && this.connected && this.botMovement == null) {
+            startMovement();
+        } else if (!shouldMove && this.botMovement != null) {
+            this.botMovement.cancel();
+            this.botMovement = null;
+        }
+    }
+
+    /**
+     * Check if the bot is currently moving
+     * @return True if the bot is moving
+     */
+    public boolean isMoving() {
+        return this.botMovement != null;
+    }
+
+    private void startMovement() {
+        if (this.botMovement != null) {
+            this.botMovement.cancel();
+        }
+        this.botMovement = new BotMovement(this);
+        this.botMovement.runTaskTimer(StressTestBots.getInstance(), 1, 1);
     }
 
     @Override

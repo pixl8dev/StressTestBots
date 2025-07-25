@@ -4,6 +4,7 @@ import com.shanebeestudios.stress.api.bot.Bot;
 import com.shanebeestudios.stress.api.bot.BotManager;
 import com.shanebeestudios.stress.api.util.Logger;
 import dev.jorel.commandapi.CommandTree;
+import dev.jorel.commandapi.arguments.BooleanArgument;
 import dev.jorel.commandapi.arguments.EntitySelectorArgument;
 import dev.jorel.commandapi.arguments.GreedyStringArgument;
 import dev.jorel.commandapi.arguments.IntegerArgument;
@@ -88,6 +89,28 @@ public class Command {
                             }
                         });
                     })))
+
+            // Make a bot send a chat message or command
+            // Toggle bot movement
+            .then(new LiteralArgument("move")
+                .withPermission("stresstestbots.command.move")
+                .then(new EntitySelectorArgument.ManyPlayers("players")
+                    .then(new BooleanArgument("shouldMove")
+                        .executes((sender, args) -> {
+                            boolean shouldMove = (boolean) args.get("shouldMove");
+                            Collection<Entity> players = (Collection<Entity>) args.get("players");
+                            assert players != null;
+                            int count = 0;
+                            for (Entity player : players) {
+                                Bot bot = this.botManager.findBotByName(player.getName());
+                                if (bot != null) {
+                                    bot.setShouldMove(shouldMove);
+                                    count++;
+                                }
+                            }
+                            String status = shouldMove ? "&aenabled" : "&cdisabled";
+                            Logger.logToSender(sender, "&7Movement &f" + status + " &7for &b" + count + " &7bot" + (count != 1 ? "s" : ""));
+                        }))))
 
             // Make a bot send a chat message or command
             .then(new LiteralArgument("chat")

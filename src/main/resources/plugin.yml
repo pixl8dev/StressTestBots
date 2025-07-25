@@ -4,3 +4,8 @@ version: '${version}'
 api-version: 1.13
 loadbefore:
   - Skript
+
+permissions:
+  stresstestbots.command.move:
+    description: Allows the use of the /stress move command
+    default: op

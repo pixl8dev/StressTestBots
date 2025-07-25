@@ -5,17 +5,23 @@ plugins {
 }
 
 val pluginVersion = "1.1.0"
-val minecraftVersion = "1.21.5"
-val protocolVersion = "1.21.5-SNAPSHOT"
+val minecraftVersion = "1.21.8"
+// Using the latest version of MCProtocolLib that supports 1.21.8
+val protocolVersion = "1.21.7-1"
 val adventureVer = "4.17.0"
-val commandApiVer = "10.0.1"
+val commandApiVer = "10.1.2"
 
 repositories {
     mavenCentral()
     maven("https://jitpack.io")
 
     // McProtocol
-    maven("https://repo.opencollab.dev/main/")
+    maven {
+        url = uri("https://repo.opencollab.dev/maven-snapshots/")
+    }
+    maven {
+        url = uri("https://repo.opencollab.dev/maven-releases/")
+    }
 
     // Paper
     maven("https://repo.papermc.io/repository/maven-public/")
